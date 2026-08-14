@@ -7,47 +7,47 @@ const router = express.Router();
 const API_KEY = config.GEMINI_API_KEY;
 
 const quizSchema = {
-    type: Type.OBJECT,
-    properties: {
-        title: {
-            type: Type.STRING,
-            description: "A creative and relevant title for the quiz based on the provided context."
-        },
-        description: {
-            type: Type.STRING,
-            description: "A concise, one-line summary of the quiz's content."
-        },
-        difficulty: {
-            type: Type.STRING,
-            description: "The estimated difficulty of the quiz. Must be one of 'Easy', 'Medium', or 'Hard'."
-        },
-        questions: {
-            type: Type.ARRAY,
-            description: "An array of quiz questions.",
-            items: {
-                type: Type.OBJECT,
-                properties: {
-                    questionText: {
-                        type: Type.STRING,
-                        description: "The text of the multiple-choice question."
-                    },
-                    options: {
-                        type: Type.ARRAY,
-                        description: "An array of 4 possible answers for the question.",
-                        items: {
-                            type: Type.STRING
-                        }
-                    },
-                    correctAnswerIndex: {
-                        type: Type.INTEGER,
-                        description: "The 0-based index of the correct answer in the 'options' array."
-                    }
-                },
-                required: ["questionText", "options", "correctAnswerIndex"]
-            }
-        }
+  type: Type.OBJECT,
+  properties: {
+    title: {
+      type: Type.STRING,
+      description: "A creative and relevant title for the quiz based on the provided context."
     },
-    required: ["title", "description", "questions", "difficulty"]
+    description: {
+      type: Type.STRING,
+      description: "A concise, one-line summary of the quiz's content."
+    },
+    difficulty: {
+      type: Type.STRING,
+      description: "The estimated difficulty of the quiz. Must be one of 'Easy', 'Medium', or 'Hard'."
+    },
+    questions: {
+      type: Type.ARRAY,
+      description: "An array of quiz questions.",
+      items: {
+        type: Type.OBJECT,
+        properties: {
+          questionText: {
+            type: Type.STRING,
+            description: "The text of the multiple-choice question."
+          },
+          options: {
+            type: Type.ARRAY,
+            description: "An array of 4 possible answers for the question.",
+            items: {
+              type: Type.STRING
+            }
+          },
+          correctAnswerIndex: {
+            type: Type.INTEGER,
+            description: "The 0-based index of the correct answer in the 'options' array."
+          }
+        },
+        required: ["questionText", "options", "correctAnswerIndex"]
+      }
+    }
+  },
+  required: ["title", "description", "questions", "difficulty"]
 };
 
 // Generate quiz from content
@@ -66,9 +66,9 @@ router.post('/generate', async (req, res) => {
     const ai = new GoogleGenAI({ apiKey: API_KEY });
 
     const difficultyInstruction = difficulty
-        ? `2. The difficulty level must be exactly ${difficulty}.`
-        : `2. Based on the complexity of the context, determine the most appropriate difficulty level for the quiz and include it in the 'difficulty' field. The value must be one of: 'Easy', 'Medium', or 'Hard'.`;
-    
+      ? `2. The difficulty level must be exactly ${difficulty}.`
+      : `2. Based on the complexity of the context, determine the most appropriate difficulty level for the quiz and include it in the 'difficulty' field. The value must be one of: 'Easy', 'Medium', or 'Hard'.`;
+
     const prompt = `
       Based on the provided context, generate a multiple-choice quiz.
       
@@ -88,45 +88,48 @@ router.post('/generate', async (req, res) => {
     const parts = [{ text: prompt }];
 
     const request = {
-        model: "gemini-2.5-flash",
-        contents: [{ parts }],
-        config: {
-            responseMimeType: "application/json",
-            responseSchema: quizSchema,
-        },
+      model: "gemini-3.5-flash",
+      contents: [{ parts }],
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: quizSchema,
+      },
     };
 
     const response = await ai.models.generateContent(request);
 
     if (!response.text) {
-        throw new Error("The AI model returned an empty response.");
+      throw new Error("The AI model returned an empty response.");
     }
 
     const jsonText = response.text.trim();
     const quizData = JSON.parse(jsonText);
 
     // Validation
-    if (!quizData || !quizData.questions || !Array.isArray(quizData.questions) || 
-        quizData.questions.length === 0 || !quizData.difficulty) {
-        throw new Error("Invalid quiz data structure");
+    if (!quizData || !quizData.questions || !Array.isArray(quizData.questions) ||
+      quizData.questions.length === 0 || !quizData.difficulty) {
+      throw new Error("Invalid quiz data structure");
     }
 
-    if (quizData.questions.some(q => !q.questionText || !q.options || 
-        q.options.length !== 4 || q.correctAnswerIndex === undefined || 
-        q.correctAnswerIndex < 0 || q.correctAnswerIndex >= 4)) {
-        throw new Error("Invalid question structure");
+    if (quizData.questions.some(q => !q.questionText || !q.options ||
+      q.options.length !== 4 || q.correctAnswerIndex === undefined ||
+      q.correctAnswerIndex < 0 || q.correctAnswerIndex >= 4)) {
+      throw new Error("Invalid question structure");
     }
 
     res.json({ quizData });
   } catch (error) {
     console.error('Gemini API error:', error);
-    
+
     const errorString = String(error);
+    if (errorString.includes('API key not valid') || errorString.includes('API_KEY_INVALID')) {
+      return res.status(401).json({ error: 'Invalid API key. Please check your Gemini API key in .env.local' });
+    }
     if (errorString.includes('SAFETY')) {
       return res.status(400).json({ error: 'Content violated safety policies' });
     }
     if (errorString.includes('400')) {
-      return res.status(400).json({ error: 'Invalid request - content might be too long' });
+      return res.status(400).json({ error: 'Invalid request - content might be too long or malformed' });
     }
     if (errorString.includes('500') || errorString.includes('503')) {
       return res.status(503).json({ error: 'AI service temporarily unavailable' });

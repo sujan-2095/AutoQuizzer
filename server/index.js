@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import { GoogleGenAI } from '@google/genai';
 import { config } from './config.js';
 import authRoutes from './routes/auth.js';
 import quizRoutes from './routes/quiz.js';
@@ -16,6 +17,36 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // Initialize database
 await initDatabase();
+
+async function verifyGeminiAPI() {
+  console.log('⏳ Verifying Gemini API connection...');
+  if (!config.GEMINI_API_KEY) {
+    console.warn('⚠️  WARNING: No GEMINI_API_KEY found in configuration.');
+    return;
+  }
+  try {
+    const ai = new GoogleGenAI({ apiKey: config.GEMINI_API_KEY });
+    await ai.models.generateContent({
+      model: "gemini-3.5-flash",
+      contents: [{ parts: [{ text: "ping" }] }],
+    });
+    console.log('✅ Gemini API is fully operational and authenticated.');
+  } catch (error) {
+    console.error('❌ WARNING: Gemini API test failed during startup.');
+    const errStr = String(error);
+    if (errStr.includes('API key not valid') || errStr.includes('API_KEY_INVALID')) {
+      console.error('   -> Error: Your API Key is invalid. Please check your .env file.');
+    } else if (errStr.includes('NOT_FOUND') || errStr.includes('404')) {
+      console.error('   -> Error: The model (gemini-3.5-flash) is not supported by your account.');
+    } else if (errStr.includes('UNAVAILABLE') || errStr.includes('503')) {
+      console.error('   -> Error: The Gemini API is currently experiencing high demand.');
+    } else {
+      console.error('   -> Error details:', error.message);
+    }
+  }
+}
+
+await verifyGeminiAPI();
 
 // Routes
 app.use('/api/auth', authRoutes);
