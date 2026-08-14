@@ -5,9 +5,9 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Load environment variables from the root directory and override system variables
-dotenv.config({ path: path.join(__dirname, '..', '.env'), override: true });
-console.log("GEMINI_API_KEY:", process.env.GEMINI_API_KEY);
+// Load environment variables from the root directory
+dotenv.config({ path: path.join(__dirname, '..', '.env') });
+console.log("GEMINI_API_KEY:", process.env.GEMINI_API_KEY ? "Loaded" : "Not Found");
 
 export const config = {
   GEMINI_API_KEY: process.env.GEMINI_API_KEY,

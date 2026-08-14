@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: autoquizzer
+    env: node
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DB_PATH
+        value: /var/data/autoquizzer.db
+      - key: GEMINI_API_KEY
+        sync: false # Set this securely in the Render dashboard!
+    disk:
+      name: autoquizzer-data
+      mountPath: /var/data
+      sizeGB: 1

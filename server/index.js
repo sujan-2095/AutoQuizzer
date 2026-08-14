@@ -1,5 +1,7 @@
 import express from 'express';
 import cors from 'cors';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { GoogleGenAI } from '@google/genai';
 import { config } from './config.js';
 import authRoutes from './routes/auth.js';
@@ -7,8 +9,11 @@ import quizRoutes from './routes/quiz.js';
 import geminiRoutes from './routes/gemini.js';
 import { initDatabase } from './database/db.js';
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 const app = express();
-const PORT = config.PORT;
+const PORT = config.PORT || 5000;
 
 // Middleware
 app.use(cors());
@@ -56,6 +61,14 @@ app.use('/api/gemini', geminiRoutes);
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'AutoQuizzer API is running' });
+});
+
+// Serve frontend static files in production
+app.use(express.static(path.join(__dirname, '../dist')));
+
+// Catch-all route to serve React app for non-API requests
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, '../dist/index.html'));
 });
 
 // Error handling middleware
