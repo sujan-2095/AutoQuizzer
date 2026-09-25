@@ -1,0 +1,7 @@
+/* AutoQuizzer Base Styles */
+@layer base {
+  body {
+    margin: 0;
+    font-family: 'Poppins', sans-serif;
+  }
+}

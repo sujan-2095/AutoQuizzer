@@ -6,16 +6,38 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const dbPath = process.env.DB_PATH || path.join(__dirname, 'autoquizzer.db');
+// Priority for database file:
+// 1. process.env.DB_PATH (e.g. Render /var/data/autoquizzer.db)
+// 2. data/autoquizzer.db (project root data directory)
+// 3. server/database/autoquizzer.db (fallback legacy location)
+const defaultDataDbPath = path.resolve(__dirname, '../../data/autoquizzer.db');
+const legacyServerDbPath = path.resolve(__dirname, 'autoquizzer.db');
+
+let resolvedDbPath = process.env.DB_PATH;
+if (!resolvedDbPath) {
+  if (fs.existsSync(defaultDataDbPath)) {
+    resolvedDbPath = defaultDataDbPath;
+  } else if (fs.existsSync(legacyServerDbPath)) {
+    resolvedDbPath = legacyServerDbPath;
+  } else {
+    resolvedDbPath = defaultDataDbPath;
+  }
+}
+
+// Ensure target directory exists
+const targetDir = path.dirname(resolvedDbPath);
+if (!fs.existsSync(targetDir)) {
+  fs.mkdirSync(targetDir, { recursive: true });
+}
 
 let db = null;
 
 export const initDatabase = async () => {
   const SQL = await initSqlJs();
-  
+
   // Load existing database or create new one
-  if (fs.existsSync(dbPath)) {
-    const buffer = fs.readFileSync(dbPath);
+  if (fs.existsSync(resolvedDbPath)) {
+    const buffer = fs.readFileSync(resolvedDbPath);
     db = new SQL.Database(buffer);
   } else {
     db = new SQL.Database();
@@ -55,14 +77,14 @@ export const initDatabase = async () => {
   // Save database to file
   saveDatabase();
 
-  console.log('✅ Database initialized successfully');
+  console.log(`✅ Database initialized successfully at ${resolvedDbPath}`);
 };
 
 export const saveDatabase = () => {
   if (db) {
     const data = db.export();
     const buffer = Buffer.from(data);
-    fs.writeFileSync(dbPath, buffer);
+    fs.writeFileSync(resolvedDbPath, buffer);
   }
 };
 

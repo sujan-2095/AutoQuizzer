@@ -17,6 +17,8 @@ dist-ssr
 # Database
 server/database/*.db
 server/database/*.db-journal
+data/*.db
+data/*.db-journal
 
 # Editor directories and files
 .vscode/*
